@@ -1200,6 +1200,7 @@ function addGroupbuy() {
 function renderGroupbuy() {
   const list = document.getElementById('gb-list');
   const empty = document.getElementById('empty-gb');
+  if (!list || !empty) return; // 團購頁已改為 iframe，元素不存在時直接跳出
   const gbs = state.groupbuys.filter(g => state.brand === 'satu' ? g.brand === 'Satu' : g.brand === 'TTBC');
 
   if (!gbs.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
