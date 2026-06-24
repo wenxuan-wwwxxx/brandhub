@@ -201,6 +201,21 @@
     padding: 10px 12px; white-space: pre-wrap; max-height: 130px; overflow-y: auto; line-height: 1.55;
   }
   .proc-card-progress { margin: 2px 0; }
+  .h-progress { display: flex; align-items: center; margin: 14px 0 4px; }
+  .h-step-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .h-step-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--color-border-secondary); background: var(--color-background-primary); flex-shrink: 0; }
+  .h-step-dot.done { background: #6B3FA0; border-color: #6B3FA0; }
+  .h-step-dot.current { background: #F59E0B; border-color: #F59E0B; }
+  .h-step-label { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
+  .h-step-label.done { color: #6B3FA0; }
+  .h-step-label.current { color: #F59E0B; font-weight: 600; }
+  .h-step-line { flex: 1; height: 2px; background: var(--color-border-tertiary); margin-bottom: 18px; }
+  .h-step-line.done { background: #6B3FA0; }
+  .pay-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin: 12px 0; }
+  .pay-info { flex: 1; }
+  .pay-btn { font-size: 12px; font-weight: 500; padding: 8px 16px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; white-space: nowrap; }
+  .pay-btn:hover { background: var(--color-background-tertiary); }
+  .pay-btn.paid { background: var(--color-background-success); border-color: var(--color-border-success); color: var(--color-text-success); }
   .proc-card-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .proc-card-fields input { width: 100%; box-sizing: border-box; }
   .proc-card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 2px; }
@@ -318,7 +333,10 @@
 
   .page { display: none; }
   .page.active { display: block; }
-  #page-groupbuy.active { display: flex; flex-direction: column; height: 100%; padding: 0; }
+  #page-groupbuy.active { display: flex; flex-direction: column; height: calc(100vh - 0px); padding: 0; }
+  .content.no-pad { padding: 0; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+  .content.no-pad #page-groupbuy.active { flex: 1; height: 100%; }
+  .content.no-pad #page-groupbuy.active iframe { flex: 1; height: 100%; }
 
   .ttbc-theme .nav-item.active { background: var(--brand-ttbc); }
   .ttbc-theme .brand-btn.satu { background: transparent; color: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.1); }
@@ -999,7 +1017,15 @@ function renderProcurement() {
         ? '<span class="status-badge approved design-badge">✅ 不需要設計</span>'
         : '';
 
-    const steps = [0,1,2,3].map(s => `<div class="progress-step ${s < step ? 'done' : s === step && status !== 'cancelled' ? 'current' : ''}"></div>`).join('');
+    const isPaid = o.paid || false;
+    const stepLabels = ['待處理','已審批','已下單','已到貨'];
+    const progressSteps = stepLabels.map((label, s) => {
+      const dotClass = s < step ? 'done' : (s === step && status !== 'cancelled' ? 'current' : '');
+      const lineClass = s < step ? 'done' : '';
+      const labelClass = s < step ? 'done' : (s === step && status !== 'cancelled' ? 'current' : '');
+      const line = s < 3 ? `<div class="h-step-line ${lineClass}"></div>` : '';
+      return `<div class="h-step-item"><div class="h-step-dot ${dotClass}"></div><div class="h-step-label ${labelClass}">${label}</div></div>${line}`;
+    }).join('');
 
     return `<div class="proc-card">
       <div class="proc-card-top">
@@ -1013,12 +1039,10 @@ function renderProcurement() {
         </div>
       </div>
 
-      <div>
+      <div style="margin-bottom:12px">
         <div class="proc-card-label">產品名稱 / 採購內容</div>
         <div class="proc-card-product">${productInfo}</div>
       </div>
-
-      <div class="proc-card-progress"><div class="progress-track" style="width:100%">${steps}</div></div>
 
       <div class="proc-card-fields">
         <div class="proc-card-field">
@@ -1030,11 +1054,6 @@ function renderProcurement() {
           <div class="proc-card-label">總成本</div>
           <input type="text" class="cost-input ${totalCost ? 'has-value' : ''}" value="${totalCost}"
             placeholder="例：20448" onchange="setOverrideField(${id}, 'totalCost', this.value)">
-        </div>
-        <div class="proc-card-field" style="grid-column:1/-1">
-          <div class="proc-card-label">老闆需要付的金額</div>
-          <input type="text" class="pay-input ${ownerPay ? 'has-value' : ''}" value="${ownerPay}"
-            placeholder="請填寫金額，自己決定要不要寫幣別" onchange="setOverrideField(${id}, 'ownerPay', this.value)">
         </div>
         <div class="proc-card-field">
           <div class="proc-card-label">預計出貨</div>
@@ -1053,12 +1072,35 @@ function renderProcurement() {
         </div>
       </div>
 
+      <div class="pay-row">
+        <div class="pay-info">
+          <div class="proc-card-label">老闆需要付的金額</div>
+          <input type="text" class="pay-input ${ownerPay ? 'has-value' : ''}" value="${ownerPay}"
+            placeholder="請填寫金額，自己決定要不要寫幣別" onchange="setOverrideField(${id}, 'ownerPay', this.value)">
+        </div>
+        <button class="pay-btn ${isPaid ? 'paid' : ''}" onclick="togglePaid(${id}, this)">
+          ${isPaid ? '✅ 已付款' : '標記已付款'}
+        </button>
+      </div>
+
+      <div class="h-progress">${progressSteps}</div>
+
       <div class="proc-card-footer">
         <span></span>
         <button class="detail-btn" onclick="openModal(${id})">詳情 →</button>
       </div>
     </div>`;
   }).join('');
+}
+
+function togglePaid(id, btn) {
+  if (!state.overrides[id]) state.overrides[id] = {};
+  const isPaid = !state.overrides[id].paid;
+  state.overrides[id].paid = isPaid;
+  saveLocal();
+  btn.classList.toggle('paid', isPaid);
+  btn.textContent = isPaid ? '✅ 已付款' : '標記已付款';
+  showToast(isPaid ? '✅ 已標記付款' : '已取消付款');
 }
 
 function setOverrideField(id, field, val) {
